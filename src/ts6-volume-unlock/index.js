@@ -72,6 +72,7 @@
 
   function installControls(element, fader) {
     const parent = fader.$parent;
+    let checkTimer = null;
     const panel = document.createElement("div");
     panel.className = "ts6vu-controls";
     panel.setAttribute("role", "group");
@@ -94,7 +95,7 @@
       input.value = String(next);
       parent.$nextTick(() => {
         parent.onClientLevelChangeFinished();
-        checkReadback(parent, next, panel);
+        scheduleCheck(next);
       });
     });
     const maximum = makeField("增益上限 dB", maxDb, MIN_MAX_DB, MAX_MAX_DB, input => {
@@ -110,29 +111,45 @@
 
     const note = document.createElement("small");
     note.className = "ts6vu-note";
-    note.textContent = "上限对所有用户生效，范围 +10 至 +60 dB";
+    note.textContent = "调节后显示客户端实际读回值；上限范围 +10 至 +60 dB";
     panel.append(current.label, maximum.label, note);
     for (const type of ["pointerdown", "mousedown", "mouseup", "click", "keydown"]) {
       panel.addEventListener(type, event => event.stopPropagation());
     }
     element.append(panel);
 
+    function scheduleCheck(expected) {
+      if (checkTimer !== null) clearTimeout(checkTimer);
+      note.textContent = `已请求 ${expected} dB，正在核对客户端读回值…`;
+      checkTimer = setTimeout(() => {
+        checkTimer = null;
+        checkReadback(parent, expected, note);
+      }, 500);
+    }
+
+    // The native slider emits this after its own persisted setter has run.
+    fader.$on("level-change-finished", () => scheduleCheck(parent.level));
+
     const unwatch = parent.$watch("level", value => {
       if (document.activeElement !== current.input) current.input.value = String(value);
     });
-    parent.$once("hook:beforeDestroy", unwatch);
+    parent.$once("hook:beforeDestroy", () => {
+      unwatch();
+      if (checkTimer !== null) clearTimeout(checkTimer);
+    });
     states.set(element, { fader, current: current.input, maximum: maximum.input });
   }
 
-  async function checkReadback(parent, expected, panel) {
+  async function checkReadback(parent, expected, note) {
     try {
       const actual = await parent.client.GetVolumeModifier();
       if (Math.abs(actual - expected) > 0.25) {
-        const note = panel.querySelector(".ts6vu-note");
-        note.textContent = `客户端返回 ${actual} dB；请求的 ${expected} dB 可能未生效`;
+        note.textContent = `请求 ${expected} dB，客户端读回 ${actual} dB；超出部分未保存`;
+      } else {
+        note.textContent = `客户端读回 ${actual} dB；实际增益还取决于原生音频处理`;
       }
     } catch {
-      // A temporary read failure must not interfere with the native control.
+      note.textContent = "客户端读回失败，请重新打开音量菜单检查";
     }
   }
 

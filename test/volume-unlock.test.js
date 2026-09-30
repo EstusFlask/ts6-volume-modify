@@ -23,7 +23,7 @@ function element() {
   };
 }
 
-test("the per-user fader reaches the chosen gain and commits numeric changes", () => {
+test("the per-user fader reaches the chosen gain and reports the native readback", async () => {
   const calls = [];
   const client = {
     SetVolumeModifier(value, save) { calls.push({ value, save }); },
@@ -40,6 +40,8 @@ test("the per-user fader reaches the chosen gain and commits numeric changes", (
   };
   const fader = {
     $parent: parent,
+    $on(name, handler) { this.listeners.set(name, handler); },
+    listeners: new Map(),
     level_db: 0,
     mm2db(position) { return position <= 76 ? 0 : (position - 76) * 10 / 24; },
     db2mm(db) { return db <= 0 ? 76 : 76 + db * 24 / 10; }
@@ -58,6 +60,8 @@ test("the per-user fader reaches the chosen gain and commits numeric changes", (
     document,
     MutationObserver: class { observe() {} },
     requestAnimationFrame(callback) { callback(); },
+    setTimeout(callback) { callback(); return 1; },
+    clearTimeout() {},
     localStorage: {
       getItem(key) { return values.get(key) ?? null; },
       setItem(key, value) { values.set(key, value); }
@@ -79,8 +83,23 @@ test("the per-user fader reaches the chosen gain and commits numeric changes", (
   assert.equal(fader.mm2db(100), 40);
   assert.equal(current.max, "40");
 
+  maximum.value = "60";
+  maximum.listeners.get("change")();
+  assert.equal(fader.mm2db(88), 30);
+  assert.equal(fader.mm2db(100), 60);
+  assert.equal(current.max, "60");
+
   current.value = "25";
   current.listeners.get("change")();
   assert.equal(parent.level, 25);
   assert.deepEqual(calls.at(-1), { value: 25, save: true });
+  assert.ok(fader.listeners.has("level-change-finished"));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(panel.children[2].textContent, /客户端读回 25 dB/);
+
+  parent.level = 40;
+  parent.onClientLevelChangeFinished();
+  fader.listeners.get("level-change-finished")();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(panel.children[2].textContent, /客户端读回 40 dB/);
 });
