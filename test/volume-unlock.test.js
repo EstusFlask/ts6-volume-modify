@@ -75,8 +75,11 @@ test("the per-user fader reaches the chosen gain and reports the native readback
 
   const panel = root.querySelector(".ts6vu-controls");
   assert.ok(panel);
+  assert.equal(panel.children[0].children[0].textContent, "Current volume (dB)");
+  assert.equal(panel.children[1].children[0].textContent, "Maximum boost (dB)");
   const current = panel.children[0].children[1];
   const maximum = panel.children[1].children[1];
+  const language = panel.children[2].children[1];
   maximum.value = "40";
   maximum.listeners.get("change")();
   assert.equal(values.get("ts6_volume_unlock_max_db"), "40");
@@ -89,17 +92,28 @@ test("the per-user fader reaches the chosen gain and reports the native readback
   assert.equal(fader.mm2db(100), 60);
   assert.equal(current.max, "60");
 
+  language.value = "zh-CN";
+  language.listeners.get("change")();
+  assert.equal(values.get("ts6_volume_unlock_language"), "zh-CN");
+  assert.equal(panel.children[0].children[0].textContent, "当前音量（dB）");
+  assert.equal(panel.children[1].children[0].textContent, "增益上限（dB）");
+
   current.value = "25";
   current.listeners.get("change")();
   assert.equal(parent.level, 25);
   assert.deepEqual(calls.at(-1), { value: 25, save: true });
   assert.ok(fader.listeners.has("level-change-finished"));
   await new Promise(resolve => setImmediate(resolve));
-  assert.match(panel.children[2].textContent, /客户端读回 25 dB/);
+  assert.match(panel.children[3].textContent, /客户端读回 25 dB/);
 
   parent.level = 40;
   parent.onClientLevelChangeFinished();
   fader.listeners.get("level-change-finished")();
   await new Promise(resolve => setImmediate(resolve));
-  assert.match(panel.children[2].textContent, /客户端读回 40 dB/);
+  assert.match(panel.children[3].textContent, /客户端读回 40 dB/);
+
+  language.value = "en";
+  language.listeners.get("change")();
+  assert.equal(panel.children[0].children[0].textContent, "Current volume (dB)");
+  assert.match(panel.children[3].textContent, /Client readback: 40 dB/);
 });
