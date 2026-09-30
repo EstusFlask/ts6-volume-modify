@@ -1,0 +1,10 @@
+{
+  "id": "ts6_volume_unlock",
+  "name": "TS6 Per-User Volume Unlock",
+  "version": "1.0.0",
+  "inject": "inject.html",
+  "injection_point": "HEAD",
+  "inject_at": "TAIL",
+  "sources": "src/",
+  "installer": ">=3.8.0"
+}
