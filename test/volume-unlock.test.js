@@ -46,6 +46,14 @@ test("the per-user fader reaches the chosen gain and reports the native readback
     mm2db(position) { return position <= 76 ? 0 : (position - 76) * 10 / 24; },
     db2mm(db) { return db <= 0 ? 76 : 76 + db * 24 / 10; }
   };
+  if (process.env.TS6_CLIENT_PATH) {
+    const source = fs.readFileSync(path.join(process.env.TS6_CLIENT_PATH, "html/client_ui/main.js"), "utf8");
+    const taper = source.match(/mm2db\((\w+)\)\{([^{}]+)\}db2mm\((\w+)\)\{([^{}]+)\}/);
+    assert.ok(taper, "Could not find the real client's fader conversion methods");
+    Object.assign(fader, vm.runInNewContext(
+      `({ mm2db(${taper[1]}) {${taper[2]}}, db2mm(${taper[3]}) {${taper[4]}} })`
+    ));
+  }
   const root = element();
   root.__vue__ = fader;
   const values = new Map();

@@ -1,4 +1,4 @@
-param([string]$TeamSpeakPath, [string]$BackupRoot, [switch]$NoLaunch)
+param([string]$TeamSpeakPath, [string]$BackupRoot, [switch]$NoLaunch, [switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
 $addonRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -34,34 +34,14 @@ foreach ($path in @($mainJs, $indexPath, $exePath, $dllPath)) {
 }
 
 $mainHash = (Get-FileHash -LiteralPath $mainJs -Algorithm MD5).Hash.ToLowerInvariant()
-if ($mainHash -ne 'ab4fd33a8e1fa31561bafa11f5401ba1') {
-    throw 'This standalone installer supports TeamSpeak 6.0.0-beta4.1 only. Use TS6AddonInstaller for another version.'
+$profiles = Get-Content -LiteralPath (Join-Path $addonRoot 'config\windows-x64.json') -Raw | ConvertFrom-Json
+$profile = $profiles | Where-Object { $_.MainHash -eq $mainHash } | Select-Object -First 1
+if (-not $profile) {
+    $supported = ($profiles | ForEach-Object { $_.Version }) -join ', '
+    throw "Unsupported TeamSpeak main.js hash: $mainHash. Supported Windows x64 versions: $supported. No files were changed."
 }
-
-$binarySpecs = @(
-    @{
-        Name = 'TeamSpeak.exe'
-        OriginalHash = '7a80b40e616cd6c6d776865220b10f7d'
-        PatchedHash = '8109ff9f79e80c1ebc12ecbde7ed9572'
-        Patches = @(@{ Offset = 0x20118; Old = '89 C3 85 C0 0F 84 A3 05 00 00 89 D8'; New = 'B8 00 00 00 00 89 C3 E9 A1 05 00 00' })
-    },
-    @{
-        Name = 'TeamSpeak.dll'
-        OriginalHash = '22af960bad1c6e9738f4a12bcf81ec7b'
-        IntermediateHash = '3442fb093b175e3b4e835a1e6c547300'
-        GainConversionHash = 'f7a3f1fe524025616d51cc70c72bd14b'
-        PatchedHash = 'a8df1195cb64f9c4773dfda232dd7c4b'
-        Patches = @(
-            @{ Offset = 0xD1AA49; Old = '75'; New = '74' },
-            @{ Offset = 0x1216505; Old = '32 DB'; New = 'B3 01' },
-            # decibel_to_volume: compare the input against an existing 60.0f constant instead of 30.0f.
-            @{ Offset = 0x1B90415; Old = '07 2F 96 00'; New = 'A7 F4 71 00' },
-            # The gain node also clamps the linear factor to 32; raise both parts of that clamp to 1000.
-            @{ Offset = 0x1B9C7AF; Old = '00 00 00 42'; New = '00 00 7A 44' },
-            @{ Offset = 0x1B9C7D9; Old = 'DB 30 71 00'; New = '6B 8D A1 00' }
-        )
-    }
-)
+$binarySpecs = $profile.BinarySpecs
+Write-Host "Detected TeamSpeak $($profile.Version) (Windows x64)."
 
 foreach ($spec in $binarySpecs) {
     $path = Join-Path $TeamSpeakPath $spec.Name
@@ -83,35 +63,56 @@ function Convert-HexToBytes([string]$hex) {
     return ,$result
 }
 
-function Install-BinaryPatch($spec) {
+function Get-BinaryPatch($spec) {
     $path = Join-Path $TeamSpeakPath $spec.Name
     $hash = (Get-FileHash -LiteralPath $path -Algorithm MD5).Hash.ToLowerInvariant()
     if ($hash -eq $spec.PatchedHash) { return }
     $bytes = [System.IO.File]::ReadAllBytes($path)
     foreach ($patch in $spec.Patches) {
+        $offset = [Convert]::ToInt32($patch.Offset, 16)
         [byte[]]$old = Convert-HexToBytes $patch.Old
         [byte[]]$new = Convert-HexToBytes $patch.New
         if ($old.Length -ne $new.Length) { throw "Invalid patch length for $($spec.Name)." }
+        if ($offset -lt 0 -or $offset + $old.Length -gt $bytes.Length) {
+            throw "Patch offset is outside $($spec.Name): $($patch.Offset)."
+        }
         $isOld = $true
         $isNew = $true
         for ($i = 0; $i -lt $old.Length; $i++) {
-            if ($bytes[$patch.Offset + $i] -ne $old[$i]) { $isOld = $false }
-            if ($bytes[$patch.Offset + $i] -ne $new[$i]) { $isNew = $false }
+            if ($bytes[$offset + $i] -ne $old[$i]) { $isOld = $false }
+            if ($bytes[$offset + $i] -ne $new[$i]) { $isNew = $false }
         }
         if (-not $isOld -and -not $isNew) {
             throw "Unexpected bytes in $($spec.Name) at offset $($patch.Offset)."
         }
         if ($isOld) {
             for ($i = 0; $i -lt $new.Length; $i++) {
-                $bytes[$patch.Offset + $i] = $new[$i]
+                $bytes[$offset + $i] = $new[$i]
             }
         }
     }
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    try {
+        $newHash = [BitConverter]::ToString($md5.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
+    } finally { $md5.Dispose() }
+    if ($newHash -ne $spec.PatchedHash) { throw "Patched $($spec.Name) checksum did not match. No files were changed." }
+    return [pscustomobject]@{ Path = $path; Bytes = $bytes; Hash = $newHash }
+}
+
+# Validate all patch bytes and final hashes in memory before backups or process changes.
+$preparedBinaries = @(foreach ($spec in $binarySpecs) { Get-BinaryPatch $spec })
+if ($CheckOnly) {
+    Write-Host 'Compatibility check passed. No files or running processes were changed.'
+    return
+}
+
+function Install-BinaryPatch($prepared) {
+    $path = $prepared.Path
     $temporary = "$path.ts6vu-new"
     try {
-        [System.IO.File]::WriteAllBytes($temporary, $bytes)
+        [System.IO.File]::WriteAllBytes($temporary, $prepared.Bytes)
         $newHash = (Get-FileHash -LiteralPath $temporary -Algorithm MD5).Hash.ToLowerInvariant()
-        if ($newHash -ne $spec.PatchedHash) { throw "Patched $($spec.Name) checksum did not match." }
+        if ($newHash -ne $prepared.Hash) { throw "Written binary checksum did not match: $path" }
         Move-Item -LiteralPath $temporary -Destination $path -Force
     } finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
@@ -141,7 +142,7 @@ if ($running.Count -gt 0) {
 
 $succeeded = $false
 try {
-    foreach ($spec in $binarySpecs) { Install-BinaryPatch $spec }
+    foreach ($prepared in $preparedBinaries) { Install-BinaryPatch $prepared }
 
     $index = [System.IO.File]::ReadAllText($indexPath, [System.Text.Encoding]::UTF8)
     $existingAddon = '(?s)<!-- ADDON_START v2 ts6_volume_unlock [^>]*-->.*?<!-- ADDON_END [0-9a-fA-F-]{36} -->'

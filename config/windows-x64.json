@@ -1,0 +1,57 @@
+[
+  {
+    "Version": "6.0.0-beta5",
+    "MainHash": "d5f22b19d42fea92c33d5d5a9fddc46d",
+    "BinarySpecs": [
+      {
+        "Name": "TeamSpeak.exe",
+        "OriginalHash": "791b1c826069c240c48b379e618de535",
+        "PatchedHash": "4f8b31f118a542701c1c8aa9a9882aae",
+        "Patches": [
+          { "Offset": "248D5", "Old": "89 C6 85 C0 0F 84 B5 FC FF FF 89 F0", "New": "B8 00 00 00 00 89 C6 E9 B3 FC FF FF" }
+        ]
+      },
+      {
+        "Name": "TeamSpeak.dll",
+        "OriginalHash": "6dea040ddfe98bda0f651a1bd7fe8f2e",
+        "IntermediateHash": "3c913da4fbd6a23f8933b3ec5f0a04a4",
+        "PatchedHash": "dbaad260c5f537c458e91aa2887b5c9c",
+        "Patches": [
+          { "Offset": "D08048", "Old": "75", "New": "74" },
+          { "Offset": "12E36A9", "Old": "32 DB", "New": "B3 01" },
+          { "Offset": "21AE0CE", "Old": "46 65 5C 00", "New": "4E A9 5A 00" },
+          { "Offset": "21849AB", "Old": "00 00 00 42", "New": "00 00 7A 44" },
+          { "Offset": "21849D5", "Old": "3F 40 5D 00", "New": "FF E3 63 00" }
+        ]
+      }
+    ]
+  },
+  {
+    "Version": "6.0.0-beta4.1",
+    "MainHash": "ab4fd33a8e1fa31561bafa11f5401ba1",
+    "BinarySpecs": [
+      {
+        "Name": "TeamSpeak.exe",
+        "OriginalHash": "7a80b40e616cd6c6d776865220b10f7d",
+        "PatchedHash": "8109ff9f79e80c1ebc12ecbde7ed9572",
+        "Patches": [
+          { "Offset": "20118", "Old": "89 C3 85 C0 0F 84 A3 05 00 00 89 D8", "New": "B8 00 00 00 00 89 C3 E9 A1 05 00 00" }
+        ]
+      },
+      {
+        "Name": "TeamSpeak.dll",
+        "OriginalHash": "22af960bad1c6e9738f4a12bcf81ec7b",
+        "IntermediateHash": "3442fb093b175e3b4e835a1e6c547300",
+        "GainConversionHash": "f7a3f1fe524025616d51cc70c72bd14b",
+        "PatchedHash": "a8df1195cb64f9c4773dfda232dd7c4b",
+        "Patches": [
+          { "Offset": "D1AA49", "Old": "75", "New": "74" },
+          { "Offset": "1216505", "Old": "32 DB", "New": "B3 01" },
+          { "Offset": "1B90415", "Old": "07 2F 96 00", "New": "A7 F4 71 00" },
+          { "Offset": "1B9C7AF", "Old": "00 00 00 42", "New": "00 00 7A 44" },
+          { "Offset": "1B9C7D9", "Old": "DB 30 71 00", "New": "6B 8D A1 00" }
+        ]
+      }
+    ]
+  }
+]

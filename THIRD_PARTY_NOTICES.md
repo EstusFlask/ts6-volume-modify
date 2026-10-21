@@ -1,6 +1,6 @@
 # Third-party patch data
 
-The TeamSpeak 6 beta4.1 addon-enabling patch offsets and bytes in `Install-Volume-Unlock.ps1` are derived from [Exopandora/TS6AddonInstaller](https://github.com/Exopandora/TS6AddonInstaller), distributed under the MIT License. The separate native decibel and linear-gain limit changes were developed for this project. The notice below is included with the derived patch data.
+The TeamSpeak 6 beta5 and beta4.1 addon-enabling patch offsets and bytes in `config/windows-x64.json` are derived from [Exopandora/TS6AddonInstaller](https://github.com/Exopandora/TS6AddonInstaller), distributed under the MIT License. The beta5 data was checked against [patches.json at commit 94ba4a3](https://github.com/Exopandora/TS6AddonInstaller/blob/94ba4a3bdbacc447f76bb7d52fb5eeb842e66ba3/src/main/resources/patches.json), included in TS6AddonInstaller 3.9.0. The separate native decibel and linear-gain limit changes were developed for this project. The notice below is included with the derived patch data.
 
 MIT License
 
