@@ -2,9 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-An unofficial local addon for **TeamSpeak 6.0.0-beta5 and beta4.1 on Windows x64**. It extends the per-user volume slider beyond the stock +10 dB range and adds precise numeric controls. The one-click package also patches two native gain limits that otherwise stop boosts above +30 dB.
+An unofficial local addon for **TeamSpeak 6.0.0-beta5.1, beta5, and beta4.1 on Windows x64** (with verified signature auto-adaptation for future compatible updates). It extends the per-user volume slider beyond the stock +10 dB range and adds precise numeric controls. The one-click package also patches two native gain limits that otherwise stop boosts above +30 dB.
 
-> **Compatibility:** Supports the exact Windows x64 builds of TeamSpeak 6.0.0-beta5 and beta4.1. Beta5 has been checked against real client files with automated installation and native-limit checks; live voice gain has not yet been retested on beta5. This project depends on undocumented client internals. A TeamSpeak update may require a new build of the addon.
+> **Compatibility:** Exact hash profiles are included for Windows x64 builds of TeamSpeak `6.0.0-beta5.1`, `beta5`, and `beta4.1`. For newer TeamSpeak updates, the one-click installer automatically scans for unique binary signatures and verifies UI/PE invariants in memory before patching, so you can usually just rerun `Install-Volume-Unlock.cmd` after an update without modifying code. Beta5.1 and beta5 have been verified against real client files with automated installation and native-limit checks; live voice gain has not yet been retested since beta4.1.
 
 ## Features
 
@@ -17,11 +17,11 @@ An unofficial local addon for **TeamSpeak 6.0.0-beta5 and beta4.1 on Windows x64
 
 ### Method 1: one-click package (recommended)
 
-This installs the UI addon and the native gain patches. It supports **TeamSpeak 6.0.0-beta5 and beta4.1 on Windows x64** and selects the matching patch automatically. It does not need Java or TS6AddonInstaller.
+This installs the UI addon and the native gain patches. It supports **TeamSpeak 6.0.0-beta5.1, beta5, and beta4.1 on Windows x64** by exact hash, and falls back to verified signature auto-adaptation on newer compatible builds. It does not need Java or TS6AddonInstaller.
 
-1. Download and extract [TS6-Volume-Unlock-One-Click-1.3.0.zip](dist/TS6-Volume-Unlock-One-Click-1.3.0.zip).
+1. Download and extract [TS6-Volume-Unlock-One-Click-1.4.0.zip](dist/TS6-Volume-Unlock-One-Click-1.4.0.zip).
 2. Double-click **`Install-Volume-Unlock.cmd`**.
-3. Wait for the script to back up your TeamSpeak files, install the addon, and restart TeamSpeak. It stops without patching if the client version or file hashes do not match.
+3. Wait for the script to back up your TeamSpeak files, install the addon, and restart TeamSpeak. It stops without patching if the UI contract, binary signatures, or checksums cannot be verified.
 
 For a nonstandard installation location, run:
 
@@ -31,18 +31,18 @@ For a nonstandard installation location, run:
 
 Backups are created under `%LOCALAPPDATA%\TeamSpeak\AddonBackups`.
 
-To verify compatibility without installing or restarting TeamSpeak, run `Install-Volume-Unlock.cmd -CheckOnly`. This also checks patch bytes and final binary hashes in memory. After updating TeamSpeak from beta4.1 to beta5, extract the new package and run it again; existing volume and language preferences are retained.
+To verify compatibility without installing or restarting TeamSpeak, run `Install-Volume-Unlock.cmd -CheckOnly`. This also checks patch bytes and final binary hashes/constants in memory. After updating TeamSpeak, simply rerun **`Install-Volume-Unlock.cmd`**; existing volume and language preferences are retained.
 
 ### Method 2: TS6AddonInstaller (UI only)
 
 This installs the extended slider and controls, **but does not remove TeamSpeak's native +30 dB gain limit**. Choose Method 1 if you need effective gain above +30 dB.
 
 1. Get [TS6AddonInstaller](https://github.com/Exopandora/TS6AddonInstaller) **3.9.0 or later** and Java 17 or later.
-2. Download [TS6-Volume-Unlock-UI-Only-1.3.0.zip](dist/TS6-Volume-Unlock-UI-Only-1.3.0.zip).
+2. Download [TS6-Volume-Unlock-UI-Only-1.4.0.zip](dist/TS6-Volume-Unlock-UI-Only-1.4.0.zip).
 3. In TS6AddonInstaller, select the TeamSpeak installation directory, choose **Local Addon**, select the ZIP, and click **Install**.
 4. Restart TeamSpeak.
 
-The UI-only package uses the same UI addon as the one-click package. Its internal UI interfaces have been checked on Windows beta5 and previously tested on beta4.1. Other versions and operating systems are unverified.
+The UI-only package uses the same UI addon as the one-click package. Its internal UI interfaces have been checked on Windows beta5.1 and beta5, and previously tested on beta4.1. Other versions and operating systems are unverified.
 
 ## How to use
 
@@ -58,7 +58,7 @@ In one live test on beta4.1, a user's voice kept getting louder up to about **+3
 
 - **Readback is not output loudness.** The one-click package raises the native dB conversion ceiling to +60 dB and the gain object's ceiling to 1000×. Later audio processing can still reduce what you hear.
 - **Echo cancellation crash in beta4.1.** On the test machine, turning off echo cancellation while connected to a voice channel made TeamSpeak exit. It reproduced with a completely unmodified client at 0 dB, so it did not require this addon. Leave the channel, change echo cancellation, then join again; this workaround was tested successfully.
-- **TeamSpeak updates.** Reinstall after an update using a package that supports the new version. The one-click script accepts only the exact beta5 and beta4.1 hashes and stops on other builds. `-CheckOnly` checks compatibility without making changes.
+- **TeamSpeak updates.** TeamSpeak updates overwrite the patched files, so rerun **`Install-Volume-Unlock.cmd`** after updating. Known builds (`beta5.1`, `beta5`, `beta4.1`) use exact hashes; newer compatible builds use verified signature auto-adaptation without requiring code edits. If TeamSpeak changes its UI or audio internals in a breaking way, preflight stops cleanly with no files changed. Use `-CheckOnly` to test compatibility without making changes.
 - **Other addons.** The native patch changes `TeamSpeak.dll` beyond the hashes recognized by TS6AddonInstaller 3.9.0. If TS6AddonInstaller rejects the DLL while installing another addon, restore the matching version's original or installer-patched DLL from backup, install that addon, then rerun this project's one-click installer. Always use backups from the same TeamSpeak version.
 
 ## Remove and restore

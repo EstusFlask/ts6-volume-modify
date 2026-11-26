@@ -1,5 +1,32 @@
 [
   {
+    "Version": "6.0.0-beta5.1",
+    "MainHash": "e5b0d9063076515d826c82b690f8bc13",
+    "BinarySpecs": [
+      {
+        "Name": "TeamSpeak.exe",
+        "OriginalHash": "5ccc06a22c1cb10415238e11f2811b98",
+        "PatchedHash": "a27380ea074257775b1df19489edb148",
+        "Patches": [
+          { "Offset": "248D5", "Old": "89 C6 85 C0 0F 84 B5 FC FF FF 89 F0", "New": "B8 00 00 00 00 89 C6 E9 B3 FC FF FF" }
+        ]
+      },
+      {
+        "Name": "TeamSpeak.dll",
+        "OriginalHash": "716915e35f6012b4dd04402ade42892d",
+        "IntermediateHash": "4c668ed5e4c332c2bc8f78d11c18094f",
+        "PatchedHash": "09d02ea799987e5284b5c3defd7a8b8d",
+        "Patches": [
+          { "Offset": "D09208", "Old": "75", "New": "74" },
+          { "Offset": "12EA7D9", "Old": "32 DB", "New": "B3 01" },
+          { "Offset": "21D060E", "Old": "A6 9D 5C 00", "New": "0E E7 5A 00" },
+          { "Offset": "21A61EB", "Old": "00 00 00 42", "New": "00 00 7A 44" },
+          { "Offset": "21A6215", "Old": "FF 8A 5D 00", "New": "9F 2A 64 00" }
+        ]
+      }
+    ]
+  },
+  {
     "Version": "6.0.0-beta5",
     "MainHash": "d5f22b19d42fea92c33d5d5a9fddc46d",
     "BinarySpecs": [

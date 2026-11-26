@@ -209,6 +209,70 @@ test("real TeamSpeak client: verifies hashes, native limits, UI contract, and re
   assert.deepEqual(clientFiles.map(name => md5(fs.readFileSync(path.join(source, name)))), sourceHashes);
 });
 
+test("auto-adapt rejects unknown main.js with valid UI contract when binaries are not valid PE64", windowsOnly, t => {
+  const files = fixture(t, profiles[0].Version);
+  fs.writeFileSync(path.join(files.client, "html/client_ui/main.js"),
+    'name:"ts-client-volume",staticClass:"client-fader","level-change-finished":e.onClientLevelChangeFinished,' +
+    'onClientLevelChangeFinished(){this.initialized&&this.client.SetVolumeModifier(this.level,!0)},' +
+    'GetVolumeModifier(){return new Promise(()=>{})},mm2db(e){return e}db2mm(e){return e}');
+  const before = snapshot(files);
+  const result = runInstaller(files, "-CheckOnly");
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /No files were changed/);
+  assert.deepEqual(snapshot(files), before);
+  assert.equal(fs.existsSync(files.backups), false);
+});
+
+test("real TeamSpeak client: auto-adapts without config hashes and matches exact patched binaries", {
+  skip: process.platform !== "win32" || !process.env.TS6_CLIENT_PATH
+}, t => {
+  const source = path.resolve(process.env.TS6_CLIENT_PATH);
+  const main = fs.readFileSync(path.join(source, "html/client_ui/main.js"));
+  const profile = profiles.find(p => p.MainHash === md5(main));
+  assert.ok(profile, "Unrecognized client main.js");
+  const files = fixture(t, profile.Version);
+  fs.writeFileSync(path.join(files.app, "config/windows-x64.json"), "[]");
+  for (const name of clientFiles) fs.copyFileSync(path.join(source, name), path.join(files.client, name));
+
+  const before = snapshot(files);
+  const check = runInstaller(files, "-CheckOnly");
+  assert.equal(check.status, 0, check.output);
+  assert.match(check.output, /auto-adapted/);
+  assert.deepEqual(snapshot(files), before);
+  assert.equal(fs.existsSync(files.backups), false);
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = runInstaller(files);
+    assert.equal(result.status, 0, result.output);
+    for (const spec of profile.BinarySpecs) {
+      const bytes = fs.readFileSync(path.join(files.client, spec.Name));
+      assert.equal(md5(bytes), spec.PatchedHash, `${spec.Name} auto-adapt hash mismatch on attempt ${attempt}`);
+      if (spec.Name === "TeamSpeak.dll") verifyNativeLimits(bytes, spec.Patches);
+    }
+    const html = fs.readFileSync(path.join(files.client, "html/client_ui/index.html"), "utf8");
+    assert.equal(html.match(/ADDON_START v2 ts6_volume_unlock/g).length, 1);
+  }
+
+  const b41Exe = path.join(source, "TeamSpeak.exe.bak");
+  const b41Dll = path.join(source, "TeamSpeak.dll.bak");
+  const b41Profile = profiles.find(p => p.Version === "6.0.0-beta4.1");
+  if (b41Profile && fs.existsSync(b41Exe) && fs.existsSync(b41Dll)) {
+    const b41Files = fixture(t, profile.Version);
+    fs.writeFileSync(path.join(b41Files.app, "config/windows-x64.json"), "[]");
+    fs.copyFileSync(path.join(source, "html/client_ui/main.js"), path.join(b41Files.client, "html/client_ui/main.js"));
+    fs.copyFileSync(path.join(source, "html/client_ui/index.html"), path.join(b41Files.client, "html/client_ui/index.html"));
+    fs.copyFileSync(b41Exe, path.join(b41Files.client, "TeamSpeak.exe"));
+    fs.copyFileSync(b41Dll, path.join(b41Files.client, "TeamSpeak.dll"));
+    const res41 = runInstaller(b41Files);
+    assert.equal(res41.status, 0, res41.output);
+    for (const spec of b41Profile.BinarySpecs) {
+      const bytes = fs.readFileSync(path.join(b41Files.client, spec.Name));
+      assert.equal(md5(bytes), spec.PatchedHash, `beta4.1 ${spec.Name} auto-adapt hash mismatch`);
+      if (spec.Name === "TeamSpeak.dll") verifyNativeLimits(bytes, spec.Patches);
+    }
+  }
+});
+
 function verifyNativeLimits(bytes, patches) {
   // Resolve RIP-relative addresses through the PE section table, not raw file offsets.
   const peOffset = bytes.readUInt32LE(0x3c);
